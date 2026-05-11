@@ -1,0 +1,9 @@
+/claude.bat
+/.venv/
+/.idea/
+/_tmp/
+/build/
+/dist/
+/*.spec.bak
+/__pycache__/
+/gui/__pycache__/
