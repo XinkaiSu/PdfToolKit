@@ -258,6 +258,21 @@ class NumberingConfig:
 
 
 # =============================================================================
+#  书签配置
+# =============================================================================
+
+@dataclass
+class BookmarkConfig:
+    enabled: bool = True
+    preserve_source: bool = False       # 保留源PDF书签
+    folder_as_bookmark: bool = True     # 文件夹名作为书签
+    filename_as_bookmark: bool = True   # 文件名作为书签
+    max_folder_depth: int = 10          # 最大文件夹嵌套深度
+    folder_open: bool = True            # 文件夹书签默认展开
+    file_open: bool = False             # 文件书签默认展开
+
+
+# =============================================================================
 #  总配置
 # =============================================================================
 
@@ -270,6 +285,7 @@ class AppConfig:
     path: PathConfig = field(default_factory=PathConfig)
     advanced: AdvancedConfig = field(default_factory=AdvancedConfig)
     numbering: NumberingConfig = field(default_factory=NumberingConfig)
+    bookmark: BookmarkConfig = field(default_factory=BookmarkConfig)
 
     # ── JSON 持久化 ──
 
@@ -287,6 +303,7 @@ class AppConfig:
             path=PathConfig(**data.get("path", {})),
             advanced=AdvancedConfig(**data.get("advanced", {})),
             numbering=NumberingConfig(**data.get("numbering", {})),
+            bookmark=BookmarkConfig(**data.get("bookmark", {})),
         )
 
     # ── 文件持久化 ──

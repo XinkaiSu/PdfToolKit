@@ -17,6 +17,7 @@ from .pagenum_tab import PageNumTab
 from .font_tab import FontTab
 from .path_tab import PathTab
 from .filelist_tab import FileListTab
+from .bookmark_tab import BookmarkTab
 
 
 class PdfToolKitApp(ctk.CTk):
@@ -75,6 +76,9 @@ class PdfToolKitApp(ctk.CTk):
         self._file_list_tab = FileListTab(
             self._tabview.add("文件列表"), self._config, app=self
         )
+        self._bookmark_tab = BookmarkTab(
+            self._tabview.add("PDF书签"), self._config
+        )
 
         # ── 底部控制区 ──
         bottom = ctk.CTkFrame(self)
@@ -120,6 +124,7 @@ class PdfToolKitApp(ctk.CTk):
         self._font_tab.apply_to_config(self._config)
         self._path_tab.apply_to_config(self._config)
         self._file_list_tab.apply_to_config(self._config)
+        self._bookmark_tab.apply_to_config(self._config)
         return self._config
 
     def _on_start(self):
@@ -255,6 +260,7 @@ class PdfToolKitApp(ctk.CTk):
         self._cover_tab.refresh_font_options()
         self._toc_tab.refresh_font_options()
         self._pagenum_tab.refresh_font_options()
+        self._bookmark_tab.refresh_font_options()
 
     def log(self, message: str):
         """外部调用日志接口。"""
