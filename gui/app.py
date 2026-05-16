@@ -32,7 +32,8 @@ class PdfToolKitApp(ctk.CTk):
         self._running = False
 
         # 窗口设置
-        self.title("PDF 批量合并工具")
+        from main import __version__
+        self.title(f"PDF 批量合并工具 v{__version__}")
         self.geometry("1100x750")
         self.minsize(900, 600)
 

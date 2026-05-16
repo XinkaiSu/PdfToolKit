@@ -27,6 +27,7 @@ a = Analysis(
         'gui.font_tab',
         'gui.path_tab',
         'gui.filelist_tab',
+        'gui.bookmark_tab',
         'pikepdf',
         'pikepdf._cpphelpers',
         'reportlab',

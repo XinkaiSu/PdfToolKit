@@ -5,6 +5,8 @@
 
 import sys
 
+__version__ = "1.1.0"
+
 
 def main():
     # CLI 模式
