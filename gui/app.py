@@ -160,12 +160,14 @@ class PdfToolKitApp(ctk.CTk):
 
         class QueueWriter:
             def write(self, text):
-                old_stdout.write(text)
+                if old_stdout is not None:
+                    old_stdout.write(text)
                 if text and text.strip():
                     log_q.put(text.strip())
 
             def flush(self):
-                old_stdout.flush()
+                if old_stdout is not None:
+                    old_stdout.flush()
 
         try:
             sys.stdout = QueueWriter()
