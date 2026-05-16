@@ -5,6 +5,11 @@
 import sys
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
+# 从 version.py 读取版本号
+sys.path.insert(0, '.')
+from version import __version__
+_version_tuple = tuple(int(x) for x in __version__.split('.'))
+
 block_cipher = None
 
 # 收集 customtkinter 数据文件（主题、图标等）
@@ -90,4 +95,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=None,
+    version='version_info.py',
 )
