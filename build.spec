@@ -2,13 +2,54 @@
 # PyInstaller 打包配置
 # 使用方法：pyinstaller build.spec --clean
 
+import os
 import sys
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
-# 从 version.py 读取版本号
+# 从 version.py 读取版本号（唯一来源）
 sys.path.insert(0, '.')
 from version import __version__
 _version_tuple = tuple(int(x) for x in __version__.split('.'))
+
+# 动态生成 Windows 版本资源文件
+_version_info_path = os.path.join(os.path.dirname(os.path.abspath(SPECPATH)), '_version_info_tmp.py')
+with open(_version_info_path, 'w', encoding='utf-8') as f:
+    f.write(f"""# UTF-8
+# 自动生成 — 勿手动编辑，版本号来源于 version.py
+
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers={_version_tuple + (0,)},
+    prodvers={_version_tuple + (0,)},
+    mask=0x3f,
+    flags=0x0,
+    OS=0x40004,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0),
+  ),
+  kids=[
+    StringFileInfo(
+      [
+        StringTable(
+          "080404b0",
+          [
+            StringStruct("CompanyName", "XinkaiSu"),
+            StringStruct("FileDescription", "PDF 批量合并工具"),
+            StringStruct("FileVersion", "{__version__}"),
+            StringStruct("InternalName", "PdfToolKit"),
+            StringStruct("LegalCopyright", "Copyright 2025-2026 XinkaiSu"),
+            StringStruct("OriginalFilename", "PdfToolKit.exe"),
+            StringStruct("ProductName", "PDF 批量合并工具"),
+            StringStruct("ProductVersion", "{__version__}"),
+          ],
+        ),
+      ],
+    ),
+    VarFileInfo([VarStruct("Translation", [2052, 1200])]),
+  ],
+)
+""")
 
 block_cipher = None
 
@@ -95,5 +136,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=None,
-    version='version_info.py',
+    version=_version_info_path,
 )
