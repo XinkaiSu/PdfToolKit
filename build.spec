@@ -84,6 +84,8 @@ a = Analysis(
         'gui.bookmark_tab',
         'gui.combine_filelist_tab',
         'gui.combine_params_tab',
+        'gui.combine_canvas_tab',
+        'gui.home_tab',
         'methods.combine',
         'pikepdf',
         'pikepdf._cpphelpers',
@@ -113,7 +115,6 @@ a = Analysis(
         'distutils',
         'setuptools',
         'pip',
-        'numpy',  # needed by methods.combine
         'scipy',
         'matplotlib',
         'pandas',
