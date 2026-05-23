@@ -10,7 +10,7 @@ import threading
 from tkinter import filedialog, colorchooser
 
 import customtkinter as ctk
-from PIL import Image, ImageTk
+from PIL import Image
 
 from config import AppConfig, CoverConfig
 
@@ -367,7 +367,7 @@ class CoverTab:
     def _render_preview(self):
         """子线程：生成封面预览图像。"""
         try:
-            from cover import generate_cover_preview
+            from methods.cover import generate_cover_preview
             title = self._title_var.get() or "成果佐证材料"
             png_bytes = generate_cover_preview(self._cover, title, self._config, dpi=72)
             # 回到主线程更新
@@ -383,7 +383,7 @@ class CoverTab:
             ratio = PREVIEW_WIDTH / img.width
             new_h = int(img.height * ratio)
             img = img.resize((PREVIEW_WIDTH, new_h), Image.Resampling.LANCZOS)
-            self._preview_image = ImageTk.PhotoImage(img)
+            self._preview_image = ctk.CTkImage(light_image=img, size=(PREVIEW_WIDTH, new_h))
             self._preview_label.configure(image=self._preview_image, text="")
         except Exception as e:
             self._preview_label.configure(image=None, text=f"预览失败：{e}")

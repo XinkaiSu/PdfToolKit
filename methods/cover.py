@@ -1,5 +1,5 @@
 # =============================================================================
-#  cover.py — 参数化封面生成 + 预览
+#  methods/cover.py — 参数化封面生成 + 预览
 #  使用 reportlab 完全生成封面，无需 DOCX 模板
 # =============================================================================
 
@@ -13,7 +13,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.pdfmetrics import stringWidth
 
 from config import CoverConfig, AppConfig
-from core import register_fonts, resolve_font, wrap_text, clean_text
+from methods.fonts import register_fonts, resolve_font, wrap_text, clean_text
 
 
 A4_WIDTH, A4_HEIGHT = A4

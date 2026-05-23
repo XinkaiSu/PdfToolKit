@@ -1,6 +1,6 @@
 # =============================================================================
 #  app.py — 主窗口框架
-#  customtkinter 主窗口，选项卡容器，底部运行控制区，日志面板
+#  顶部模式栏 + 左侧导航 + 右侧内容区 + 底部控制/日志
 # =============================================================================
 
 import os
@@ -18,6 +18,23 @@ from .font_tab import FontTab
 from .path_tab import PathTab
 from .filelist_tab import FileListTab
 from .bookmark_tab import BookmarkTab
+from .combine_filelist_tab import CombineFileListTab
+from .combine_params_tab import CombineParamsTab
+from .combine_canvas_tab import CombineCanvasTab
+from .home_tab import HomeTab
+
+
+# ── 模式定义 ──────────────────────────────────────────────────────────────────
+
+_MERGE_ITEMS = ["路径", "封面配置", "目录设置", "页码设置", "字体设置", "PDF书签", "文件列表"]
+_COMBINE_ITEMS = ["文件列表", "参数设置", "拼接画布"]
+_MODE_ITEMS = {
+    "合并": _MERGE_ITEMS,
+    "拼图": _COMBINE_ITEMS,
+}
+
+NAV_WIDTH = 150
+NAV_ITEM_HEIGHT = 36
 
 
 class PdfToolKitApp(ctk.CTk):
@@ -30,12 +47,22 @@ class PdfToolKitApp(ctk.CTk):
         self._stop_event = threading.Event()
         self._log_queue = queue.Queue()
         self._running = False
+        self._current_mode = "首页"
+        self._current_nav = ""
 
         # 窗口设置
         from main import __version__
         self.title(f"PDF 批量合并工具 v{__version__}")
         self.geometry("1100x750")
         self.minsize(900, 600)
+
+        # 设置窗口图标
+        if getattr(sys, 'frozen', False):
+            icon_path = os.path.join(sys._MEIPASS, "gui", "icon.ico")
+        else:
+            icon_path = os.path.join(os.path.dirname(__file__), "icon.ico")
+        if os.path.exists(icon_path):
+            self.iconbitmap(icon_path)
 
         # 居中显示
         self.update_idletasks()
@@ -53,35 +80,161 @@ class PdfToolKitApp(ctk.CTk):
         # 关闭时保存配置
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-    def _build_ui(self):
-        # ── 选项卡区域 ──
-        self._tabview = ctk.CTkTabview(self)
-        self._tabview.pack(fill="both", expand=True, padx=10, pady=(10, 0))
+    # =========================================================================
+    #  UI 构建
+    # =========================================================================
 
-        # 创建各选项卡（路径放最前）
-        self._path_tab = PathTab(
-            self._tabview.add("路径"), self._config, app=self
+    def _build_ui(self):
+        # ── 顶部模式栏 ──
+        mode_frame = ctk.CTkFrame(self, fg_color="transparent")
+        mode_frame.pack(fill="x", padx=10, pady=(10, 0))
+
+        self._mode_var = ctk.StringVar(value="首页")
+        self._mode_btn = ctk.CTkSegmentedButton(
+            mode_frame,
+            variable=self._mode_var,
+            values=["首页", "合并", "拼图"],
+            command=self._on_mode_change,
         )
-        self._cover_tab = CoverTab(
-            self._tabview.add("封面配置"), self._config, app=self
-        )
-        self._toc_tab = TocTab(
-            self._tabview.add("目录设置"), self._config
-        )
-        self._pagenum_tab = PageNumTab(
-            self._tabview.add("页码设置"), self._config
-        )
-        self._font_tab = FontTab(
-            self._tabview.add("字体设置"), self._config
-        )
-        self._file_list_tab = FileListTab(
-            self._tabview.add("文件列表"), self._config, app=self
-        )
-        self._bookmark_tab = BookmarkTab(
-            self._tabview.add("PDF书签"), self._config
-        )
+        self._mode_btn.pack(side="left")
+
+        # ── 中间区域：左侧导航 + 右侧内容 ──
+        mid_frame = ctk.CTkFrame(self, fg_color="transparent")
+        mid_frame.pack(fill="both", expand=True, padx=10, pady=(5, 0))
+        mid_frame.grid_columnconfigure(1, weight=1)
+        mid_frame.grid_rowconfigure(0, weight=1)
+
+        # 左侧导航
+        self._nav_frame = ctk.CTkFrame(mid_frame, width=NAV_WIDTH, corner_radius=8)
+        self._nav_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        self._nav_frame.grid_propagate(False)
+
+        # 右侧内容区
+        self._content_frame = ctk.CTkFrame(mid_frame, corner_radius=8)
+        self._content_frame.grid(row=0, column=1, sticky="nsew")
+
+        # 初始化面板
+        self._init_panels()
+
+        # 构建导航（首页模式时隐藏）
+        self._build_nav()
+        self._nav_frame.grid_remove()
 
         # ── 底部控制区 ──
+        self._build_bottom()
+
+    def _init_panels(self):
+        """预创建所有面板实例（首页 + 合并7个 + 拼图3个）。"""
+        # 首页面板
+        self._home_panel = HomeTab(self._content_frame, self._config, app=self)
+
+        # 合并模式面板
+        self._merge_panels = {}
+        self._merge_panels["路径"] = PathTab(self._content_frame, self._config, app=self)
+        self._merge_panels["封面配置"] = CoverTab(self._content_frame, self._config, app=self)
+        self._merge_panels["目录设置"] = TocTab(self._content_frame, self._config)
+        self._merge_panels["页码设置"] = PageNumTab(self._content_frame, self._config)
+        self._merge_panels["字体设置"] = FontTab(self._content_frame, self._config)
+        self._merge_panels["PDF书签"] = BookmarkTab(self._content_frame, self._config)
+        self._merge_panels["文件列表"] = FileListTab(self._content_frame, self._config, app=self)
+
+        # 拼图模式面板
+        self._combine_panels = {}
+        self._combine_panels["文件列表"] = CombineFileListTab(self._content_frame, self._config, app=self)
+        self._combine_panels["参数设置"] = CombineParamsTab(self._content_frame, self._config, app=self)
+        self._combine_panels["拼接画布"] = CombineCanvasTab(self._content_frame, self._config, app=self)
+
+        # 隐藏所有面板
+        self._hide_all_panels()
+        # 显示首页
+        self._home_panel._frame.pack(in_=self._content_frame, fill="both", expand=True, padx=5, pady=5)
+
+    def _hide_all_panels(self):
+        """隐藏所有面板 widget。"""
+        self._home_panel._frame.pack_forget()
+        for panel in self._merge_panels.values():
+            if hasattr(panel, '_main'):
+                panel._main.pack_forget()
+            elif hasattr(panel, '_frame'):
+                panel._frame.pack_forget()
+        for panel in self._combine_panels.values():
+            if hasattr(panel, '_frame'):
+                panel._frame.pack_forget()
+
+    def _build_nav(self):
+        """根据当前模式构建左侧导航按钮。"""
+        for widget in self._nav_frame.winfo_children():
+            widget.destroy()
+
+        items = _MODE_ITEMS.get(self._current_mode, [])
+        self._nav_buttons = {}
+
+        for i, name in enumerate(items):
+            is_selected = (name == self._current_nav)
+            btn = ctk.CTkButton(
+                self._nav_frame,
+                text=name,
+                width=NAV_WIDTH - 10,
+                height=NAV_ITEM_HEIGHT,
+                anchor="w",
+                fg_color=("#3b8ed0", "#1f6aa5") if is_selected else "transparent",
+                text_color=("gray10", "gray90") if is_selected else ("gray40", "gray60"),
+                hover_color=("gray75", "gray30"),
+                command=lambda n=name: self._on_nav_click(n),
+            )
+            btn.pack(padx=5, pady=(5 if i == 0 else 2, 2), fill="x")
+            self._nav_buttons[name] = btn
+
+    def _on_nav_click(self, name):
+        """点击左侧导航项。"""
+        self._current_nav = name
+        self._show_panel(name)
+        self._build_nav()
+
+    def _show_panel(self, name):
+        """显示指定面板，隐藏其他面板。"""
+        # 隐藏所有
+        self._home_panel._frame.pack_forget()
+        for panel in self._merge_panels.values():
+            if hasattr(panel, '_main'):
+                panel._main.pack_forget()
+            elif hasattr(panel, '_frame'):
+                panel._frame.pack_forget()
+        for panel in self._combine_panels.values():
+            if hasattr(panel, '_frame'):
+                panel._frame.pack_forget()
+
+        # 显示目标面板
+        panels = self._merge_panels if self._current_mode == "合并" else self._combine_panels
+        panel = panels.get(name)
+        if panel:
+            if hasattr(panel, '_main'):
+                panel._main.pack(in_=self._content_frame, fill="both", expand=True, padx=5, pady=5)
+            elif hasattr(panel, '_frame'):
+                panel._frame.pack(in_=self._content_frame, fill="both", expand=True, padx=5, pady=5)
+
+    def _on_mode_change(self, value):
+        """顶部模式栏切换。"""
+        self._current_mode = value
+        if value == "首页":
+            # 首页模式：隐藏导航，显示首页
+            self._nav_frame.grid_remove()
+            self._hide_all_panels()
+            self._home_panel._frame.pack(in_=self._content_frame, fill="both", expand=True, padx=5, pady=5)
+        else:
+            # 合并/拼图模式：隐藏首页，显示导航
+            self._home_panel._frame.pack_forget()
+            self._nav_frame.grid()
+            items = _MODE_ITEMS[value]
+            self._current_nav = items[0]
+            self._build_nav()
+            self._show_panel(self._current_nav)
+
+    # =========================================================================
+    #  底部控制区
+    # =========================================================================
+
+    def _build_bottom(self):
         bottom = ctk.CTkFrame(self)
         bottom.pack(fill="x", padx=10, pady=10)
 
@@ -117,19 +270,36 @@ class PdfToolKitApp(ctk.CTk):
         self._log_text = ctk.CTkTextbox(bottom, height=120, state="disabled")
         self._log_text.pack(fill="x", padx=10, pady=(0, 10))
 
+    # =========================================================================
+    #  配置收集
+    # =========================================================================
+
     def _collect_config(self) -> AppConfig:
         """从所有选项卡收集当前配置。"""
-        self._cover_tab.apply_to_config(self._config)
-        self._toc_tab.apply_to_config(self._config)
-        self._pagenum_tab.apply_to_config(self._config)
-        self._font_tab.apply_to_config(self._config)
-        self._path_tab.apply_to_config(self._config)
-        self._file_list_tab.apply_to_config(self._config)
-        self._bookmark_tab.apply_to_config(self._config)
+        self._merge_panels["封面配置"].apply_to_config(self._config)
+        self._merge_panels["目录设置"].apply_to_config(self._config)
+        self._merge_panels["页码设置"].apply_to_config(self._config)
+        self._merge_panels["字体设置"].apply_to_config(self._config)
+        self._merge_panels["路径"].apply_to_config(self._config)
+        self._merge_panels["文件列表"].apply_to_config(self._config)
+        self._merge_panels["PDF书签"].apply_to_config(self._config)
+        self._combine_panels["文件列表"].apply_to_config(self._config)
+        self._combine_panels["参数设置"].apply_to_config(self._config)
         return self._config
 
+    # =========================================================================
+    #  处理逻辑
+    # =========================================================================
+
     def _on_start(self):
-        """点击开始处理。"""
+        """点击开始处理 — 根据当前模式分发。"""
+        if self._current_mode == "合并":
+            self._on_start_merge()
+        elif self._current_mode == "拼图":
+            self._on_start_combine()
+
+    def _on_start_merge(self):
+        """合并模式开始处理。"""
         config = self._collect_config()
 
         if not config.path.input_root:
@@ -146,15 +316,40 @@ class PdfToolKitApp(ctk.CTk):
         self._progress.set(0)
         self._status_label.configure(text="处理中...")
 
-        # 在子线程中执行
-        thread = threading.Thread(target=self._run_process, args=(config,), daemon=True)
+        thread = threading.Thread(target=self._run_merge, args=(config,), daemon=True)
         thread.start()
 
-    def _run_process(self, config: AppConfig):
-        """子线程：执行 PDF 处理流程。"""
-        from core import process_folder, process_single_merge, get_subfolders, register_fonts
+    def _on_start_combine(self):
+        """拼图模式开始处理。"""
+        config = self._collect_config()
+        combine_cfg = config.combine
 
-        # 重定向 stdout 到队列
+        if len(combine_cfg.input_files) < 2:
+            self._log("[X] 至少需要 2 个输入文件")
+            return
+        if not combine_cfg.output_path:
+            self._log("[X] 请设置输出路径")
+            return
+
+        # 从画布标签页获取用户微调后的位置
+        canvas_tab = self._combine_panels.get("拼接画布")
+        canvas_positions = canvas_tab._positions if canvas_tab and canvas_tab._positions else None
+
+        self._running = True
+        self._stop_event.clear()
+        self._start_btn.configure(state="disabled")
+        self._stop_btn.configure(state="normal")
+        self._progress.set(0)
+        self._status_label.configure(text="拼图处理中...")
+
+        thread = threading.Thread(target=self._run_combine, args=(combine_cfg, canvas_positions), daemon=True)
+        thread.start()
+
+    def _run_merge(self, config: AppConfig):
+        """子线程：执行合并流程。"""
+        from core import process_folder, process_single_merge, get_subfolders
+        from methods.fonts import register_fonts
+
         old_stdout = sys.stdout
         log_q = self._log_queue
 
@@ -175,7 +370,6 @@ class PdfToolKitApp(ctk.CTk):
             register_fonts(config)
 
             if config.advanced.merge_mode == "single":
-                # 整体合并模式
                 root_name = os.path.basename(config.path.input_root) or "output"
                 output_file = os.path.join(config.path.output_root, f"{root_name}.pdf")
                 process_single_merge(
@@ -186,7 +380,6 @@ class PdfToolKitApp(ctk.CTk):
                 )
                 log_q.put(("progress", 1.0))
             else:
-                # 按子文件夹分别合并（默认行为）
                 folders = get_subfolders(config.path.input_root, config)
                 total = len(folders)
 
@@ -217,20 +410,53 @@ class PdfToolKitApp(ctk.CTk):
             sys.stdout = old_stdout
             log_q.put("done")
 
+    def _run_combine(self, combine_cfg, canvas_positions=None):
+        """子线程：执行拼图流程。"""
+        from methods.combine import process_combine
+
+        old_stdout = sys.stdout
+        log_q = self._log_queue
+
+        class QueueWriter:
+            def write(self, text):
+                if old_stdout is not None:
+                    old_stdout.write(text)
+                if text and text.strip():
+                    log_q.put(text.strip())
+
+            def flush(self):
+                if old_stdout is not None:
+                    old_stdout.flush()
+
+        try:
+            sys.stdout = QueueWriter()
+            process_combine(combine_cfg, stop_event=self._stop_event,
+                            canvas_positions=canvas_positions)
+            log_q.put(("progress", 1.0))
+            log_q.put(f"\n[DONE] 拼图完成! 输出: {combine_cfg.output_path}")
+
+        except Exception as e:
+            log_q.put(f"[X] 拼图执行失败: {e}")
+
+        finally:
+            sys.stdout = old_stdout
+            log_q.put("done")
+
+    # =========================================================================
+    #  停止 / 日志 / 关闭
+    # =========================================================================
+
     def _on_stop(self):
-        """点击停止。"""
         self._stop_event.set()
         self._log("[STOP] 正在停止...")
 
     def _log(self, message: str):
-        """向日志区域追加消息（主线程调用）。"""
         self._log_text.configure(state="normal")
         self._log_text.insert("end", message + "\n")
         self._log_text.see("end")
         self._log_text.configure(state="disabled")
 
     def _poll_log_queue(self):
-        """定期从队列中取出日志消息并更新 UI。"""
         while True:
             try:
                 msg = self._log_queue.get_nowait()
@@ -250,7 +476,6 @@ class PdfToolKitApp(ctk.CTk):
         self.after(100, self._poll_log_queue)
 
     def _on_close(self):
-        """窗口关闭时保存配置。"""
         self._collect_config()
         try:
             self._config.save()
@@ -259,12 +484,10 @@ class PdfToolKitApp(ctk.CTk):
         self.destroy()
 
     def refresh_fonts(self):
-        """通知所有选项卡刷新字体下拉框选项。"""
-        self._cover_tab.refresh_font_options()
-        self._toc_tab.refresh_font_options()
-        self._pagenum_tab.refresh_font_options()
-        self._bookmark_tab.refresh_font_options()
+        self._merge_panels["封面配置"].refresh_font_options()
+        self._merge_panels["目录设置"].refresh_font_options()
+        self._merge_panels["页码设置"].refresh_font_options()
+        self._merge_panels["PDF书签"].refresh_font_options()
 
     def log(self, message: str):
-        """外部调用日志接口。"""
         self._log(message)

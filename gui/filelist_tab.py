@@ -90,7 +90,7 @@ class FileListTab:
 
         def _scan():
             try:
-                from core import collect_file_tree
+                from methods.merge import collect_file_tree
                 items, _ = collect_file_tree(input_root, self._config)
                 if self._app:
                     self._app.after(0, lambda: self._populate_tree(items))

@@ -273,6 +273,25 @@ class BookmarkConfig:
 
 
 # =============================================================================
+#  拼图配置
+# =============================================================================
+
+@dataclass
+class CombineConfig:
+    dpi: int = 200
+    overlap: Optional[float] = None      # 手动重叠比例 0~1，None=自动检测
+    feather: int = 40                    # 羽化像素数
+    order: str = "auto"                  # "auto" / "manual"
+    no_auto: bool = False                # 跳过重叠检测直接拼接
+    output_path: str = ""                # 输出PDF路径
+    input_files: list = field(default_factory=list)  # 输入文件路径列表
+    bg_threshold: int = 240              # 白色背景阈值，≥此值的像素视为背景
+    bg_color: list = field(default_factory=lambda: [255, 255, 255])  # 画布背景色 RGB
+    crop_border_mm: float = 0.0          # 边框裁切毫米数
+    crop_whitespace: bool = True         # 自动裁切周边空白区域
+
+
+# =============================================================================
 #  总配置
 # =============================================================================
 
@@ -286,6 +305,7 @@ class AppConfig:
     advanced: AdvancedConfig = field(default_factory=AdvancedConfig)
     numbering: NumberingConfig = field(default_factory=NumberingConfig)
     bookmark: BookmarkConfig = field(default_factory=BookmarkConfig)
+    combine: CombineConfig = field(default_factory=CombineConfig)
 
     # ── JSON 持久化 ──
 
@@ -304,6 +324,7 @@ class AppConfig:
             advanced=AdvancedConfig(**data.get("advanced", {})),
             numbering=NumberingConfig(**data.get("numbering", {})),
             bookmark=BookmarkConfig(**data.get("bookmark", {})),
+            combine=CombineConfig(**data.get("combine", {})),
         )
 
     # ── 文件持久化 ──

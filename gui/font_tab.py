@@ -187,7 +187,7 @@ class FontTab:
 
     def _test_fonts(self):
         """测试注册字体并刷新状态。"""
-        from core import register_fonts
+        from methods.fonts import register_fonts
         import pdfmetrics
         try:
             register_fonts(self._config)

@@ -34,7 +34,8 @@ def _run_cli():
     """命令行模式（兼容旧版）。"""
     import os
     from config import AppConfig
-    from core import process_folder, get_subfolders, register_fonts
+    from core import process_folder, get_subfolders
+    from methods.fonts import register_fonts
 
     config = AppConfig.load()
     input_root = config.path.input_root
