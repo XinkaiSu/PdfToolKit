@@ -1,4 +1,4 @@
-# PDF Batch Merge Tool
+# PdfToolKit
 
 Scan subfolders under a root directory and merge PDFs in each subfolder into a single file with: cover page, table of contents, page numbers, and A4-normalized content. Also supports a Combine mode to intelligently stitch multiple segmented PDFs into a complete document. Full GUI with real-time parameter configuration, or run from the command line.
 
