@@ -126,7 +126,8 @@ class FontTab:
                 side="right", padx=2)
 
     def _browse_font_dir(self):
-        path = filedialog.askdirectory(title="选择字体目录")
+        initial = self._font_dir_var.get() or os.path.expanduser("~")
+        path = filedialog.askdirectory(title="选择字体目录", initialdir=initial)
         if path:
             self._font_dir_var.set(path)
             self._font.font_dir = path

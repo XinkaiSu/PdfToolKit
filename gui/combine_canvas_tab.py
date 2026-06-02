@@ -29,6 +29,7 @@ class CombineCanvasTab:
         self._positions = []
         self._canvas_items = []
         self._drag_data = {}
+        self._updating = False
         self._pos_vars = []   # 每段的 (x_var, y_var) StringVar 列表
 
         self._build()
@@ -206,6 +207,8 @@ class CombineCanvasTab:
 
     def _on_var_change(self, idx):
         """输入框变化时同步到 _positions 并刷新画布。"""
+        if self._updating:
+            return
         if idx >= len(self._pos_vars):
             return
         x_var, y_var = self._pos_vars[idx]
@@ -219,11 +222,13 @@ class CombineCanvasTab:
 
     def _sync_vars_from_positions(self):
         """将 _positions 同步到输入框变量。"""
+        self._updating = True
         for idx, (px, py) in enumerate(self._positions):
             if idx < len(self._pos_vars):
                 x_var, y_var = self._pos_vars[idx]
                 x_var.set(str(px))
                 y_var.set(str(py))
+        self._updating = False
 
     # ── 画布显示 ──
 
@@ -261,12 +266,13 @@ class CombineCanvasTab:
                 cx, cy, anchor="nw", image=thumb_tk)
 
             label = os.path.basename(seg["path"])
-            self._canvas.create_text(
+            text_id = self._canvas.create_text(
                 cx + 4, cy + 4, anchor="nw", text=label,
                 font=("Microsoft YaHei UI", 8), fill="blue")
 
             self._canvas_items.append({
                 "canvas_id": item_id,
+                "text_id": text_id,
                 "thumb": thumb_tk,
                 "seg_idx": idx,
             })
@@ -297,20 +303,29 @@ class CombineCanvasTab:
             return
         cx = self._canvas.canvasx(event.x)
         cy = self._canvas.canvasy(event.y)
+        idx = self._drag_data["seg_idx"]
         max_orig_w = max(seg["orig_img"].width for seg in self._segments) if self._segments else 1
         preview_scale = min(1.0, self.PREVIEW_MAX_WIDTH / max_orig_w)
         dx = (cx - self._drag_data["start_cx"]) / preview_scale
         dy = (cy - self._drag_data["start_cy"]) / preview_scale
-        idx = self._drag_data["seg_idx"]
         new_x = int(self._drag_data["start_px"] + dx)
         new_y = int(self._drag_data["start_py"] + dy)
         self._positions[idx] = (new_x, new_y)
-        # 同步到右侧面板
-        self._sync_vars_from_positions()
-        self._display_on_canvas()
+        # 仅移动被拖拽项的画布坐标，不做全量重绘
+        canvas_cx = new_x * preview_scale
+        canvas_cy = new_y * preview_scale
+        for ci in self._canvas_items:
+            if ci["seg_idx"] == idx:
+                self._canvas.coords(ci["canvas_id"], canvas_cx, canvas_cy)
+                self._canvas.coords(ci["text_id"], canvas_cx + 4, canvas_cy + 4)
+                break
 
     def _on_release(self, event):
+        if not self._drag_data:
+            return
         self._drag_data = {}
+        self._sync_vars_from_positions()
+        self._display_on_canvas()
 
     # ── 配置 ──
 

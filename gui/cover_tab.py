@@ -322,7 +322,8 @@ class CoverTab:
         """选择 Logo 文件。"""
         path = filedialog.askopenfilename(
             title="选择 Logo 图片",
-            filetypes=[("图片文件", "*.png *.jpg *.jpeg *.bmp *.gif"), ("所有文件", "*.*")]
+            filetypes=[("图片文件", "*.png *.jpg *.jpeg *.bmp *.gif"), ("所有文件", "*.*")],
+            initialdir=os.path.dirname(self._cover.logo_path) if self._cover.logo_path else os.path.expanduser("~"),
         )
         if path:
             self._cover.logo_path = path

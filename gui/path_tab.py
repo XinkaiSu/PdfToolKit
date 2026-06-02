@@ -135,7 +135,8 @@ class PathTab:
 
     def _pick_target_folder(self):
         """选择目标文件夹，自动填充输入和输出目录。"""
-        path = filedialog.askdirectory(title="选择目标文件夹")
+        initial = self._path.input_root or os.path.expanduser("~")
+        path = filedialog.askdirectory(title="选择目标文件夹", initialdir=initial)
         if path:
             self._path.input_root = path
             self._input_var.set(path)
@@ -148,7 +149,8 @@ class PathTab:
                 self._app.log(f"[i] 目标文件夹：{path}")
 
     def _browse_path(self, attr, var):
-        path = filedialog.askdirectory(title="选择目录")
+        initial = var.get() or self._path.input_root or os.path.expanduser("~")
+        path = filedialog.askdirectory(title="选择目录", initialdir=initial)
         if path:
             var.set(path)
             setattr(self._path, attr, path)

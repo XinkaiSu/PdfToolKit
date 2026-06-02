@@ -194,7 +194,8 @@ class CombineParamsTab:
             pass
 
     def _browse_output_dir(self):
-        path = filedialog.askdirectory(title="选择输出目录")
+        initial = self._output_dir_var.get() or os.path.expanduser("~")
+        path = filedialog.askdirectory(title="选择输出目录", initialdir=initial)
         if path:
             self._output_dir_var.set(path)
 

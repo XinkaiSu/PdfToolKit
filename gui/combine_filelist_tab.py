@@ -92,9 +92,13 @@ class CombineFileListTab:
 
     def _add_files(self):
         """添加 PDF 文件。"""
+        initial = self._combine.input_files[0] if self._combine.input_files else os.path.expanduser("~")
+        if os.path.isfile(initial):
+            initial = os.path.dirname(initial)
         paths = filedialog.askopenfilenames(
             title="选择 PDF 文件",
-            filetypes=[("PDF 文件", "*.pdf"), ("所有文件", "*.*")]
+            filetypes=[("PDF 文件", "*.pdf"), ("所有文件", "*.*")],
+            initialdir=initial,
         )
         if not paths:
             return
