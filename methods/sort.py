@@ -80,14 +80,29 @@ _CN_ORDER_RE = re.compile(
 )
 
 
+_ARABIC_ORDER_RE = re.compile(
+    r"^(?:"
+    r"第(\d+)[章节条款]"
+    r"|[（(](\d+)[）)]"
+    r"|(\d+)[、．.\s_\-]"
+    r")"
+)
+
+
 def chinese_sort_key(s: str) -> tuple:
-    """解析文件名开头的中文序号，返回排序键。"""
+    """解析文件名开头的中文/阿拉伯序号，返回排序键。"""
     m = _CN_ORDER_RE.match(s)
     if m:
         cn_str = m.group(1) or m.group(2) or m.group(3)
         num = _cn_to_int(cn_str)
         rest = s[m.end():]
         return (num if num >= 0 else float("inf"), natural_sort_key(rest))
+    # 尝试匹配阿拉伯数字前缀（与中文编号使用相同分隔符）
+    m = _ARABIC_ORDER_RE.match(s)
+    if m:
+        num = int(m.group(1) or m.group(2) or m.group(3))
+        rest = s[m.end():]
+        return (num, natural_sort_key(rest))
     return (float("inf"), natural_sort_key(s))
 
 

@@ -27,25 +27,22 @@ def collect_file_tree(root_dir: str, config: AppConfig, custom_order: dict = Non
     }
 
     def _apply_custom_order(entries, path):
-        """根据 custom_order 重排条目，未列出的条目按默认排序追加到末尾。"""
+        """根据 custom_order 重排条目。
+        所有条目均能匹配时使用自定义顺序，否则回退默认智能排序。
+        """
         if not custom_order or path not in custom_order:
             return entries
         order_list = custom_order[path]
         order_map = {name: i for i, name in enumerate(order_list)}
-        ordered = []
-        remaining = []
+        matched = []
         for raw, cln in entries:
-            key = raw  # 用原始文件名匹配
-            if key in order_map:
-                ordered.append((order_map[key], raw, cln))
-            else:
-                remaining.append((raw, cln))
-        ordered.sort(key=lambda x: x[0])
-        result = [(raw, cln) for _, raw, cln in ordered]
-        # 未在自定义排序中的条目按默认排序追加
-        remaining.sort(key=lambda x: smart_sort_key(x[0], config))
-        result.extend(remaining)
-        return result
+            if raw in order_map:
+                matched.append((order_map[raw], raw, cln))
+        # 有条目无法匹配（文件名变更/新增/删除），回退默认排序
+        if len(matched) != len(entries):
+            return sorted(entries, key=lambda x: smart_sort_key(x[0], config))
+        matched.sort(key=lambda x: x[0])
+        return [(raw, cln) for _, raw, cln in matched]
 
     def _is_valid_file(name, path):
         """判断文件是否应被收集（PDF 或启用图片时的图片文件）。"""

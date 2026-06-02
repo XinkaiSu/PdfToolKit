@@ -47,9 +47,9 @@ GUI tabs hold direct references to config dataclasses; edits write through immed
 | Module | Role |
 |---|---|
 | `fonts.py` | Font registration (reportlab), fallback resolution, text wrapping |
-| `sort.py` | `smart_sort_key` — Chinese numeral prefix parsing (一、二、第X章, （X）), natural sort fallback |
+| `sort.py` | `smart_sort_key` — Chinese/Arabic numeral prefix parsing (一/1、第X章、（X）), natural sort fallback |
 | `convert.py` | A4 XObject embedding (`_page_to_xobject`/`_embed_xobject`), image→PDF, temp file management |
-| `merge.py` | File tree collection + content merging |
+| `merge.py` | File tree collection + content merging; `_apply_custom_order` falls back to smart sort when file_order is stale |
 | `cover.py` | Parameterized cover generation + preview (reportlab canvas, no DOCX) |
 | `toc.py` | Table of contents generation |
 | `pagenum.py` | Page number overlay as separate XObject layer (not reportlab merge) |
@@ -71,6 +71,8 @@ All panels are pre-created at init and shown/hidden via `pack`/`pack_forget`.
 - Page numbers are overlaid as a separate XObject layer on each page (not merged via reportlab)
 - Cover generation: reportlab canvas rendering, fully parameterized (no DOCX template dependency)
 - Combine offset detection uses FFT-based Normalized Cross-Correlation (numpy) — ~0.7s vs 30+s brute-force
+- Smart sort (`sort.py`): `chinese_sort_key` parses both Chinese numerals (一、第X章) and Arabic numerals (1、第1章) into a unified numeric primary key, so mixed naming sorts correctly
+- `file_order` (drag-and-drop custom ordering) is stored in `AdvancedConfig`; when entries become stale (file renamed/added/deleted), `_apply_custom_order` falls back to smart sort instead of appending unmatched files at the end
 - Image convert mode (`enable_image_convert=True`) rasterizes all pages via Poppler; requires separate Poppler install on Windows
 - `core.py` creates temp PDFs alongside the script (`_cover_tmp.pdf`, etc.) and cleans up in `finally`
 - Processing runs in a daemon thread; `stop_event` (threading.Event) enables cancellation between pipeline steps
