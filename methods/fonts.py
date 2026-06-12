@@ -17,7 +17,7 @@ from config import AppConfig
 # =============================================================================
 
 def register_fonts(config: AppConfig):
-    """注册配置中所有可用字体。"""
+    """注册配置中所有可用字体（含粗体变体）。"""
     font_dir = config.font.font_dir
     for name, filename in config.font.font_map.items():
         path = os.path.join(font_dir, filename)
@@ -31,6 +31,33 @@ def register_fonts(config: AppConfig):
         except Exception as e:
             print(f"[!] 字体 {name} 注册失败：{e}")
 
+    # 注册粗体变体：注册名为 "<name>+Bold"
+    bold_map = getattr(config.font, "bold_font_map", {}) or {}
+    for name, bold_filename in bold_map.items():
+        if not bold_filename:
+            continue
+        path = os.path.join(font_dir, bold_filename)
+        if not os.path.exists(path):
+            continue
+        bold_name = bold_font_name(name)
+        try:
+            if bold_filename.lower().endswith(".ttc"):
+                pdfmetrics.registerFont(TTFont(bold_name, path, subfontIndex=0))
+            else:
+                pdfmetrics.registerFont(TTFont(bold_name, path))
+        except Exception as e:
+            print(f"[!] 粗体字体 {bold_name} 注册失败：{e}")
+
+
+def bold_font_name(name: str) -> str:
+    """返回某字体对应的粗体注册名约定。"""
+    return f"{name}+Bold"
+
+
+def has_bold_variant(name: str) -> bool:
+    """检查指定字体是否已注册粗体变体。"""
+    return bold_font_name(name) in pdfmetrics.getRegisteredFontNames()
+
 
 def get_fallback_font(config: AppConfig) -> str:
     """按回退顺序返回第一个已注册的字体名。"""
@@ -43,8 +70,12 @@ def get_fallback_font(config: AppConfig) -> str:
     )
 
 
-def resolve_font(preferred: str, config: AppConfig) -> str:
-    """返回 preferred 字体（若已注册），否则返回 fallback 字体。"""
+def resolve_font(preferred: str, config: AppConfig, bold: bool = False) -> str:
+    """返回 preferred 字体（若已注册），否则返回 fallback 字体。
+    bold=True 时优先尝试同名粗体变体。
+    """
+    if bold and has_bold_variant(preferred):
+        return bold_font_name(preferred)
     if preferred in pdfmetrics.getRegisteredFontNames():
         return preferred
     return get_fallback_font(config)
@@ -63,11 +94,18 @@ _SPECIAL_CHAR_RE = re.compile(
 
 
 def clean_text(text: str, config: AppConfig) -> str:
-    """过滤无法显示的特殊字符，压缩多余空白。"""
+    """过滤无法显示的特殊字符，压缩多余空白（保留换行）。"""
     if not text or not config.advanced.remove_special_chars:
         return text
-    text = _SPECIAL_CHAR_RE.sub("", text)
-    return re.sub(r"\s+", " ", text).strip()
+    # 先保护换行符
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    parts = text.split("\n")
+    cleaned = []
+    for part in parts:
+        p = _SPECIAL_CHAR_RE.sub("", part)
+        p = re.sub(r"[ \t\f\v]+", " ", p).strip()
+        cleaned.append(p)
+    return "\n".join(cleaned)
 
 
 def wrap_text(text: str, font: str, size: float, max_width: float) -> list:

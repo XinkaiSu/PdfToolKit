@@ -87,6 +87,7 @@ a = Analysis(
         'gui.combine_canvas_tab',
         'gui.home_tab',
         'methods.combine',
+        'methods.blankpage',
         'pikepdf',
         'pikepdf._cpphelpers',
         'reportlab',

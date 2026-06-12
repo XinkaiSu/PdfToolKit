@@ -17,6 +17,7 @@ from methods.toc import generate_toc
 from methods.pagenum import add_page_numbers, add_page_numbers_image_mode
 from methods.bookmark import add_bookmarks_to_pdf
 from methods.cover import generate_cover_pdf
+from methods.blankpage import remove_blank_pages, adjust_page_mapping
 
 
 # =============================================================================
@@ -65,6 +66,22 @@ def process_folder(input_folder, output_file, config: AppConfig, stop_event=None
         # 2. 合并正文
         print("\n 合并正文 PDF…")
         pagination, content_pages, source_offsets = merge_content(items, content_pdf, config)
+
+        # 2.5 删除空白页
+        if config.advanced.remove_blank_pages:
+            blank_tmp = os.path.join(script_dir, "_blank_tmp.pdf")
+            tmp_files.append(blank_tmp)
+            print("\n 检测并删除空白页…")
+            removed_count, removed_indices = remove_blank_pages(content_pdf, blank_tmp)
+            if removed_count > 0:
+                content_pages = adjust_page_mapping(pagination, source_offsets, removed_indices, content_pages)
+                # 用清理后的文件替换原文件
+                shutil.move(blank_tmp, content_pdf)
+                print(f"   已删除 {removed_count} 页空白页，剩余 {content_pages} 页")
+            else:
+                print("   未检测到空白页")
+                if os.path.exists(blank_tmp):
+                    os.remove(blank_tmp)
 
         if stop_event and stop_event.is_set():
             return
@@ -201,6 +218,21 @@ def process_single_merge(input_folder, output_file, config: AppConfig, stop_even
         # 2. 合并正文
         print("\n 合并正文…")
         pagination, content_pages, source_offsets = merge_content(items, content_pdf, config)
+
+        # 2.5 删除空白页
+        if config.advanced.remove_blank_pages:
+            blank_tmp = os.path.join(script_dir, "_blank_tmp.pdf")
+            tmp_files.append(blank_tmp)
+            print("\n 检测并删除空白页…")
+            removed_count, removed_indices = remove_blank_pages(content_pdf, blank_tmp)
+            if removed_count > 0:
+                content_pages = adjust_page_mapping(pagination, source_offsets, removed_indices, content_pages)
+                shutil.move(blank_tmp, content_pdf)
+                print(f"   已删除 {removed_count} 页空白页，剩余 {content_pages} 页")
+            else:
+                print("   未检测到空白页")
+                if os.path.exists(blank_tmp):
+                    os.remove(blank_tmp)
 
         if stop_event and stop_event.is_set():
             return

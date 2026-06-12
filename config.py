@@ -54,6 +54,7 @@ class CoverConfig:
     cover_date: str = ""                   # 留空则自动使用当前年月
     date_font: str = "SimSun"
     date_size: int = 14
+    date_y_ratio: float = 0.20             # 垂直位置（页面高度比例，0=底 1=顶）
 
     # ── 右上角文字 ──
     corner_text: str = ""
@@ -195,6 +196,17 @@ class FontConfig:
         "FZXiaoBiaoSong-B05S":  "FZXBSJW.ttf",
     })
 
+    # 粗体字体文件映射（注册名 → 粗体 ttf/ttc 文件名）
+    # 若注册名在此 dict 中且文件存在，则注册一个同名「+Bold」字体可供使用
+    bold_font_map: dict = field(default_factory=lambda: {
+        "SimHei":               "",
+        "SimSun":               "",
+        "SimKai":               "",
+        "SimFang":              "",
+        "MicrosoftYaHei":       "msyhbd.ttc",
+        "FZXiaoBiaoSong-B05S":  "",
+    })
+
     fallback_order: list = field(default_factory=lambda: [
         "MicrosoftYaHei", "SimHei", "SimSun"
     ])
@@ -224,6 +236,7 @@ class AdvancedConfig:
     # 其他
     remove_special_chars: bool = True
     enable_chinese_sort: bool = True
+    remove_blank_pages: bool = False
 
     # 图片合并
     include_images: bool = False
@@ -248,6 +261,8 @@ class AdvancedConfig:
 @dataclass
 class NumberingConfig:
     enabled: bool = False
+    # 删除原文件/文件夹名开头的原有编号（中文/阿拉伯/多级）
+    remove_original: bool = False
     # 每级编号样式: "none" / "chinese" / "arabic" / "multi_level"
     level1_style: str = "none"
     level2_style: str = "none"

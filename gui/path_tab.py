@@ -111,6 +111,7 @@ class PathTab:
         self._section("其他设置")
         self._add_checkbox("过滤特殊字符", "remove_special_chars")
         self._add_checkbox("启用中文序号排序", "enable_chinese_sort")
+        self._add_checkbox("删除空白页", "remove_blank_pages")
 
         self._section("配置管理")
         btn_frame = ctk.CTkFrame(self._frame, fg_color="transparent")

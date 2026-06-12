@@ -82,6 +82,12 @@ class TocTab:
 
         # ── 编号设置 ──
         self._section("编号设置")
+        # 删除原有编号（置于启用编号上方）
+        remove_var = ctk.BooleanVar(value=self._numbering.remove_original)
+        ctk.CTkCheckBox(self._frame, text="删除原有编号", variable=remove_var).pack(
+            anchor="w", padx=10, pady=2)
+        remove_var.trace_add("write", lambda *_: self._set_num_bool("remove_original", remove_var))
+
         num_var = ctk.BooleanVar(value=self._numbering.enabled)
         ctk.CTkCheckBox(self._frame, text="启用编号", variable=num_var).pack(
             anchor="w", padx=10, pady=2)

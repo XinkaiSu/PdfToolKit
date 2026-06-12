@@ -10,6 +10,7 @@ import pikepdf
 from pikepdf import Pdf
 
 from config import AppConfig
+from methods.sort import strip_original_numbering
 
 
 def _resolve_bookmark_page(pdf, item):
@@ -104,7 +105,8 @@ def build_tree_bookmarks(items, pagination, page_offset, config):
         page_index = page_1based - 1 + page_offset  # 转为 0-based 最终页索引
 
         result.append({
-            "title": item["name"],
+            "title": (strip_original_numbering(item["name"])
+                      if config.numbering.remove_original else item["name"]),
             "page_index": page_index,
             "level": item["level"],
         })

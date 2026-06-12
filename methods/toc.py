@@ -9,9 +9,9 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase.pdfmetrics import stringWidth
 
 from config import AppConfig
-from methods.fonts import register_fonts, resolve_font, clean_text, wrap_text
+from methods.fonts import register_fonts, resolve_font, has_bold_variant, clean_text, wrap_text
 from methods.convert import convert_pdf_to_a4, make_temp_file
-from methods.sort import _compute_numbering_prefix
+from methods.sort import _compute_numbering_prefix, strip_original_numbering
 from pikepdf import Pdf
 
 
@@ -57,8 +57,15 @@ def generate_toc(output_path, items, pagination, title, config: AppConfig):
             font = resolve_font(toc.font_file, config)
             bold = False
         else:
-            font = resolve_font(_FONT_BY_LEVEL.get(level, toc.font_deeper), config)
-            bold = (level == 2)
+            preferred = _FONT_BY_LEVEL.get(level, toc.font_deeper)
+            want_bold = (level == 2)
+            # 若该字体有粗体变体，直接用粗体注册名；否则保留双重描边的 bold 标志
+            if want_bold and has_bold_variant(preferred):
+                font = resolve_font(preferred, config, bold=True)
+                bold = False
+            else:
+                font = resolve_font(preferred, config)
+                bold = want_bold
 
         c.setFont(font, toc.font_size)
         page_str = str(page_no)
@@ -98,6 +105,9 @@ def generate_toc(output_path, items, pagination, title, config: AppConfig):
 
         # 编号前缀
         name_text = clean_text(item["name"], config)
+        # 删除原有编号（在追加新编号之前）
+        if config.numbering.remove_original:
+            name_text = strip_original_numbering(name_text)
         if config.numbering.enabled:
             num_cfg = config.numbering
             level = item["level"]

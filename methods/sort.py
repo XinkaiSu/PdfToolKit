@@ -89,6 +89,42 @@ _ARABIC_ORDER_RE = re.compile(
 )
 
 
+# 多级编号（1.2.3 / 1.2.3、 / 1.2.3 等）
+_MULTI_LEVEL_RE = re.compile(
+    r"^\d+(?:\.\d+){1,}[、．.\s_\-]?"
+)
+
+
+def strip_original_numbering(name: str) -> str:
+    """递归删除文件/文件夹名开头的原有编号前缀。
+
+    依次匹配并剥离：多级编号(1.2.3) → 阿拉伯编号(1、/第1章/(1)) → 中文编号(一、/第一章/（一）)。
+    多次循环直到再无匹配，可处理嵌套场景如 "1.2 一、xxx"。
+    """
+    if not name:
+        return name
+    prev = None
+    cur = name
+    while prev != cur:
+        prev = cur
+        # 1) 多级编号
+        m = _MULTI_LEVEL_RE.match(cur)
+        if m:
+            cur = cur[m.end():].lstrip()
+            continue
+        # 2) 阿拉伯编号
+        m = _ARABIC_ORDER_RE.match(cur)
+        if m:
+            cur = cur[m.end():].lstrip()
+            continue
+        # 3) 中文编号
+        m = _CN_ORDER_RE.match(cur)
+        if m:
+            cur = cur[m.end():].lstrip()
+            continue
+    return cur or name
+
+
 def chinese_sort_key(s: str) -> tuple:
     """解析文件名开头的中文/阿拉伯序号，返回排序键。"""
     m = _CN_ORDER_RE.match(s)

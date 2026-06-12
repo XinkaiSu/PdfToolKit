@@ -72,6 +72,17 @@ class CoverTab:
         var.trace_add("write", lambda *_: self._on_change(attr, var))
         return var
 
+    def _add_multiline_entry(self, label, attr, width=200, height=60):
+        """添加多行文本输入框（CTkTextbox）。"""
+        frame = ctk.CTkFrame(self._left, fg_color="transparent")
+        frame.pack(fill="x", padx=10, pady=2)
+        ctk.CTkLabel(frame, text=label, width=100, anchor="w").pack(side="left")
+        textbox = ctk.CTkTextbox(frame, width=width, height=height)
+        textbox.pack(side="right")
+        textbox.insert("0.0", str(getattr(self._cover, attr, "")))
+        textbox.bind("<KeyRelease>", lambda _: self._on_text_change(attr, textbox))
+        return textbox
+
     def _add_font_combo(self, label, attr, width=200):
         """添加字体下拉框。"""
         frame = ctk.CTkFrame(self._left, fg_color="transparent")
@@ -144,13 +155,14 @@ class CoverTab:
         """构建所有设置控件。"""
         # ── 预览标题 ──
         self._section("预览标题")
-        self._title_var = ctk.StringVar(value="成果佐证材料")
+        # 多行主标题输入框（不使用 textvariable，CTkTextbox 不支持）
         frame = ctk.CTkFrame(self._left, fg_color="transparent")
         frame.pack(fill="x", padx=10, pady=2)
         ctk.CTkLabel(frame, text="主标题文本", width=100, anchor="w").pack(side="left")
-        self._title_entry = ctk.CTkEntry(frame, textvariable=self._title_var, width=200)
-        self._title_entry.pack(side="right")
-        self._title_var.trace_add("write", lambda *_: self._on_title_text_change())
+        self._title_textbox = ctk.CTkTextbox(frame, width=200, height=60)
+        self._title_textbox.pack(side="right")
+        self._title_textbox.insert("0.0", "成果佐证材料")
+        self._title_textbox.bind("<KeyRelease>", lambda _: self._on_title_text_change())
 
         # 主标题「使用目标文件夹名」复选框
         self._main_use_folder_var = ctk.BooleanVar(value=self._cover.main_title_use_folder)
@@ -170,14 +182,15 @@ class CoverTab:
 
         # ── 副标题 ──
         self._section("副标题")
-        # 手动构建副标题输入框（保留 entry 引用以控制状态）
+        # 副标题多行输入框
         sub_frame = ctk.CTkFrame(self._left, fg_color="transparent")
         sub_frame.pack(fill="x", padx=10, pady=2)
         ctk.CTkLabel(sub_frame, text="副标题文本", width=100, anchor="w").pack(side="left")
-        self._subtitle_var = ctk.StringVar(value=str(getattr(self._cover, "subtitle", "")))
-        self._subtitle_entry = ctk.CTkEntry(sub_frame, textvariable=self._subtitle_var, width=200)
-        self._subtitle_entry.pack(side="right")
-        self._subtitle_var.trace_add("write", lambda *_: self._on_change("subtitle", self._subtitle_var))
+        self._subtitle_textbox = ctk.CTkTextbox(sub_frame, width=200, height=60)
+        self._subtitle_textbox.pack(side="right")
+        self._subtitle_textbox.insert("0.0", str(getattr(self._cover, "subtitle", "")))
+        self._subtitle_textbox.bind("<KeyRelease>",
+                                     lambda _: self._on_text_change("subtitle", self._subtitle_textbox))
 
         # 「使用目标文件夹名」复选框
         self._sub_use_folder_var = ctk.BooleanVar(value=self._cover.subtitle_use_folder)
@@ -220,8 +233,8 @@ class CoverTab:
 
         # ── 编制单位 ──
         self._section("编制单位")
-        self._add_entry("标签文字", "unit_label")
-        self._add_entry("单位名称", "unit_name")
+        self._add_multiline_entry("标签文字", "unit_label")
+        self._add_multiline_entry("单位名称", "unit_name")
         self._add_font_combo("字体", "unit_font")
         self._add_int_entry("标签字号", "unit_label_size")
         self._add_int_entry("名称字号", "unit_name_size")
@@ -229,13 +242,14 @@ class CoverTab:
 
         # ── 日期 ──
         self._section("日期")
-        self._add_entry("日期(留空自动)", "cover_date")
+        self._add_multiline_entry("日期(留空自动)", "cover_date")
         self._add_font_combo("日期字体", "date_font")
         self._add_int_entry("日期字号", "date_size")
+        self._add_slider("垂直位置", "date_y_ratio", 0.05, 0.95)
 
         # ── 右上角文字 ──
         self._section("右上角文字")
-        self._add_entry("文字(留空隐藏)", "corner_text")
+        self._add_multiline_entry("文字(留空隐藏)", "corner_text")
         self._add_font_combo("字体", "corner_text_font")
         self._add_int_entry("字号", "corner_text_size")
         self._corner_color_btn = self._add_color_button("文字颜色", "corner_text_color")
@@ -269,6 +283,15 @@ class CoverTab:
             pass
         self._schedule_preview_refresh()
 
+    def _on_text_change(self, attr, textbox):
+        """多行文本属性变更。"""
+        try:
+            val = textbox.get("0.0", "end-1c")
+            setattr(self._cover, attr, val)
+        except Exception:
+            pass
+        self._schedule_preview_refresh()
+
     def _on_change_int(self, attr, var):
         """整数属性变更。"""
         try:
@@ -295,7 +318,7 @@ class CoverTab:
 
     def _on_title_text_change(self):
         """主标题文本变更，同步到 config。"""
-        self._cover.title_text = self._title_var.get()
+        self._cover.title_text = self._title_textbox.get("0.0", "end-1c")
         self._schedule_preview_refresh()
 
     def _on_main_use_folder_toggle(self):
@@ -303,9 +326,9 @@ class CoverTab:
         use_folder = self._main_use_folder_var.get()
         self._cover.main_title_use_folder = use_folder
         if use_folder:
-            self._title_entry.configure(state="disabled")
+            self._title_textbox.configure(state="disabled")
         else:
-            self._title_entry.configure(state="normal")
+            self._title_textbox.configure(state="normal")
         self._schedule_preview_refresh()
 
     def _on_sub_use_folder_toggle(self):
@@ -313,9 +336,9 @@ class CoverTab:
         use_folder = self._sub_use_folder_var.get()
         self._cover.subtitle_use_folder = use_folder
         if use_folder:
-            self._subtitle_entry.configure(state="disabled")
+            self._subtitle_textbox.configure(state="disabled")
         else:
-            self._subtitle_entry.configure(state="normal")
+            self._subtitle_textbox.configure(state="normal")
         self._schedule_preview_refresh()
 
     def _pick_logo(self):
@@ -369,7 +392,7 @@ class CoverTab:
         """子线程：生成封面预览图像。"""
         try:
             from methods.cover import generate_cover_preview
-            title = self._title_var.get() or "成果佐证材料"
+            title = self._title_textbox.get("0.0", "end-1c") or "成果佐证材料"
             png_bytes = generate_cover_preview(self._cover, title, self._config, dpi=72)
             # 回到主线程更新
             self.after(0, self._update_preview_image, png_bytes)

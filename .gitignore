@@ -8,6 +8,7 @@
 /_version_info_tmp.py
 /__pycache__/
 /gui/__pycache__/
+/methods/__pycache__/
 /test/
 /docs/
 /.claude/

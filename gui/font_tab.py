@@ -47,9 +47,12 @@ class FontTab:
         # 表头
         header = ctk.CTkFrame(self._font_map_frame, fg_color="transparent")
         header.pack(fill="x")
-        ctk.CTkLabel(header, text="注册名", width=150, anchor="w",
+        ctk.CTkLabel(header, text="", width=20).pack(side="left")
+        ctk.CTkLabel(header, text="注册名", width=130, anchor="w",
                      font=ctk.CTkFont(weight="bold")).pack(side="left")
-        ctk.CTkLabel(header, text="字体文件", width=150, anchor="w",
+        ctk.CTkLabel(header, text="常规字体", width=130, anchor="w",
+                     font=ctk.CTkFont(weight="bold")).pack(side="left")
+        ctk.CTkLabel(header, text="粗体字体", width=130, anchor="w",
                      font=ctk.CTkFont(weight="bold")).pack(side="left")
         ctk.CTkLabel(header, text="状态", width=80, anchor="center",
                      font=ctk.CTkFont(weight="bold")).pack(side="left")
@@ -84,6 +87,7 @@ class FontTab:
                 widget.destroy()
 
         font_dir = self._font.font_dir
+        bold_map = getattr(self._font, "bold_font_map", {}) or {}
         for name, filename in self._font.font_map.items():
             row = ctk.CTkFrame(self._font_map_frame, fg_color="transparent")
             row.pack(fill="x", pady=1)
@@ -92,18 +96,39 @@ class FontTab:
             select_var = ctk.BooleanVar(value=False)
             ctk.CTkCheckBox(row, text="", variable=select_var, width=20).pack(side="left")
 
-            ctk.CTkLabel(row, text=name, width=140, anchor="w").pack(side="left")
-            ctk.CTkLabel(row, text=filename, width=140, anchor="w").pack(side="left")
+            ctk.CTkLabel(row, text=name, width=120, anchor="w").pack(side="left")
+            ctk.CTkLabel(row, text=filename, width=120, anchor="w").pack(side="left")
+
+            # 粗体字体输入框（可点击编辑）
+            bold_val = bold_map.get(name, "")
+            bold_var = ctk.StringVar(value=bold_val)
+            bold_entry = ctk.CTkEntry(row, textvariable=bold_var, width=120,
+                                       placeholder_text="（无）")
+            bold_entry.pack(side="left")
+            bold_var.trace_add("write",
+                               lambda *_a, n=name, v=bold_var: self._set_bold(n, v))
 
             path = os.path.join(font_dir, filename)
             exists = os.path.exists(path)
-            status = "✅ 已找到" if exists else "⚠️ 未找到"
-            color = "green" if exists else "orange"
+            bold_path = os.path.join(font_dir, bold_val) if bold_val else ""
+            bold_ok = bool(bold_val) and os.path.exists(bold_path)
+            if exists and (not bold_val or bold_ok):
+                status, color = ("✅ 已找到" if not bold_val else "✅ +粗体"), "green"
+            elif exists and not bold_ok:
+                status, color = "⚠️ 粗体缺失", "orange"
+            else:
+                status, color = "⚠️ 未找到", "orange"
             ctk.CTkLabel(row, text=status, width=80, anchor="center",
                          text_color=color).pack(side="left")
 
             # 保存 select_var 引用
             row._select_var = select_var
+
+    def _set_bold(self, name, var):
+        """更新某字体的粗体文件名映射。"""
+        if not hasattr(self._font, "bold_font_map") or self._font.bold_font_map is None:
+            self._font.bold_font_map = {}
+        self._font.bold_font_map[name] = var.get().strip()
 
     def _rebuild_fallback_list(self):
         """重建回退顺序列表。"""
