@@ -57,3 +57,17 @@ Three-tier sort key system for filenames with numeric prefixes:
 - `resolve_font(preferred, config)` / `get_fallback_font(config)` — font fallback chain
 - `clean_text(text, config)` — strips unsupported characters via `_SPECIAL_CHAR_RE`
 - `wrap_text(text, font, size, max_width)` — pixel-accurate line wrapping
+
+### `scan.py` — Scan Mode (Look-Like-Scanned)
+
+- `_apply_scan_effects(img, scan_cfg)` — applies scanner effects via `look-like-scanned.DocumentScanner._apply_effects` according to preset (light/medium/heavy/custom)
+- `render_pdf_to_images(pdf_path, dpi)` — PyMuPDF render → list of PIL images at requested DPI
+- `images_to_pdf_a4(images, output_path, jpeg_quality)` — write images as A4-centered pages via reportlab
+- `collect_scan_files(scan_cfg)` — recursive walk, filters by ScanConfig.include_office / include_images, sorts via chinese_sort_key
+- `process_scan_file(input, output, scan_cfg, stop_event)` — single-file pipeline, returns "ok"/"skip"/"fail"/"stopped"
+
+### `office.py` — Word COM Bridge
+
+- `word_to_pdf_temp(docx_path) -> tmp_pdf_path` — uses `win32com.client.DispatchEx("Word.Application").Documents.Open(...).SaveAs(FileFormat=17)`
+- `coinitialize()` / `couninitialize()` — call once at worker thread entry/exit
+- `OfficeError` — single error type for missing pywin32, missing Word, password-protected docs, generic COM failures
