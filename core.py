@@ -318,9 +318,13 @@ def process_single_merge(input_folder, output_file, config: AppConfig, stop_even
         cleanup_temp()
 
 
-def process_scan_root(scan_cfg, stop_event=None):
+def process_scan_root(scan_cfg, stop_event=None, progress_callback=None):
     """扫描模式入口：递归处理输入根下所有 PDF/Office/图片，
-    输出镜像写入输出根。"""
+    输出镜像写入输出根。
+
+    progress_callback(done, total)：每完成（或跳过/失败）一个文件后调用，
+    用于 GUI 进度条更新。可选。
+    """
     from methods.scan import collect_scan_files, process_scan_file
     from methods.office import coinitialize, couninitialize
 
@@ -365,6 +369,8 @@ def process_scan_root(scan_cfg, stop_event=None):
             if dst_key in seen_outputs:
                 print(f"[!] 同名冲突：{stem}.pdf 已被前一个文件输出，本次跳过 {os.path.basename(src)}")
                 skip += 1
+                if progress_callback:
+                    progress_callback(i + 1, total)
                 continue
             seen_outputs.add(dst_key)
 
@@ -373,6 +379,8 @@ def process_scan_root(scan_cfg, stop_event=None):
             except PermissionError:
                 print(f"[X] 无权创建目录：{os.path.dirname(dst)}")
                 fail += 1
+                if progress_callback:
+                    progress_callback(i + 1, total)
                 continue
 
             try:
@@ -380,6 +388,8 @@ def process_scan_root(scan_cfg, stop_event=None):
             except Exception as e:
                 print(f"[X] {rel} 处理时抛出未捕获异常：{e}")
                 fail += 1
+                if progress_callback:
+                    progress_callback(i + 1, total)
                 continue
 
             if result == "ok":
@@ -391,6 +401,9 @@ def process_scan_root(scan_cfg, stop_event=None):
                 break
             else:
                 fail += 1
+
+            if progress_callback:
+                progress_callback(i + 1, total)
     finally:
         couninitialize()
 

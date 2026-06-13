@@ -511,7 +511,13 @@ class PdfToolKitApp(ctk.CTk):
         try:
             sys.stdout = QueueWriter()
             os.makedirs(scan_cfg.output_root, exist_ok=True)
-            process_scan_root(scan_cfg, stop_event=self._stop_event)
+
+            def _progress(done, total):
+                if total > 0:
+                    log_q.put(("progress", done / total))
+
+            process_scan_root(scan_cfg, stop_event=self._stop_event,
+                              progress_callback=_progress)
             log_q.put(("progress", 1.0))
             log_q.put(f"\n[DONE] 扫描完成! 输出目录: {scan_cfg.output_root}")
         except Exception as e:
