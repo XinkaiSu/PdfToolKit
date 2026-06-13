@@ -22,15 +22,19 @@ from .combine_filelist_tab import CombineFileListTab
 from .combine_params_tab import CombineParamsTab
 from .combine_canvas_tab import CombineCanvasTab
 from .home_tab import HomeTab
+from .scan_path_tab import ScanPathTab
+from .scan_params_tab import ScanParamsTab
 
 
 # ── 模式定义 ──────────────────────────────────────────────────────────────────
 
 _MERGE_ITEMS = ["路径", "封面配置", "目录设置", "页码设置", "字体设置", "PDF书签", "文件列表"]
 _COMBINE_ITEMS = ["文件列表", "参数设置", "拼接画布"]
+_SCAN_ITEMS = ["路径", "扫描参数"]
 _MODE_ITEMS = {
     "合并": _MERGE_ITEMS,
     "拼图": _COMBINE_ITEMS,
+    "扫描": _SCAN_ITEMS,
 }
 
 NAV_WIDTH = 150
@@ -93,7 +97,7 @@ class PdfToolKitApp(ctk.CTk):
         self._mode_btn = ctk.CTkSegmentedButton(
             mode_frame,
             variable=self._mode_var,
-            values=["首页", "合并", "拼图"],
+            values=["首页", "合并", "拼图", "扫描"],
             command=self._on_mode_change,
         )
         self._mode_btn.pack(side="left")
@@ -124,7 +128,7 @@ class PdfToolKitApp(ctk.CTk):
         self._build_bottom()
 
     def _init_panels(self):
-        """预创建所有面板实例（首页 + 合并7个 + 拼图3个）。"""
+        """预创建所有面板实例（首页 + 合并7个 + 拼图3个 + 扫描2个）。"""
         # 首页面板
         self._home_panel = HomeTab(self._content_frame, self._config, app=self)
 
@@ -144,6 +148,11 @@ class PdfToolKitApp(ctk.CTk):
         self._combine_panels["参数设置"] = CombineParamsTab(self._content_frame, self._config, app=self)
         self._combine_panels["拼接画布"] = CombineCanvasTab(self._content_frame, self._config, app=self)
 
+        # 扫描模式面板
+        self._scan_panels = {}
+        self._scan_panels["路径"] = ScanPathTab(self._content_frame, self._config, app=self)
+        self._scan_panels["扫描参数"] = ScanParamsTab(self._content_frame, self._config, app=self)
+
         # 隐藏所有面板
         self._hide_all_panels()
         # 显示首页
@@ -158,6 +167,9 @@ class PdfToolKitApp(ctk.CTk):
             elif hasattr(panel, '_frame'):
                 panel._frame.pack_forget()
         for panel in self._combine_panels.values():
+            if hasattr(panel, '_frame'):
+                panel._frame.pack_forget()
+        for panel in self._scan_panels.values():
             if hasattr(panel, '_frame'):
                 panel._frame.pack_forget()
 
@@ -203,9 +215,19 @@ class PdfToolKitApp(ctk.CTk):
         for panel in self._combine_panels.values():
             if hasattr(panel, '_frame'):
                 panel._frame.pack_forget()
+        for panel in self._scan_panels.values():
+            if hasattr(panel, '_frame'):
+                panel._frame.pack_forget()
 
         # 显示目标面板
-        panels = self._merge_panels if self._current_mode == "合并" else self._combine_panels
+        if self._current_mode == "合并":
+            panels = self._merge_panels
+        elif self._current_mode == "拼图":
+            panels = self._combine_panels
+        elif self._current_mode == "扫描":
+            panels = self._scan_panels
+        else:
+            return
         panel = panels.get(name)
         if panel:
             if hasattr(panel, '_main'):
@@ -222,7 +244,7 @@ class PdfToolKitApp(ctk.CTk):
             self._hide_all_panels()
             self._home_panel._frame.pack(in_=self._content_frame, fill="both", expand=True, padx=5, pady=5)
         else:
-            # 合并/拼图模式：隐藏首页，显示导航
+            # 合并/拼图/扫描模式：隐藏首页，显示导航
             self._home_panel._frame.pack_forget()
             self._nav_frame.grid()
             items = _MODE_ITEMS[value]
@@ -285,6 +307,8 @@ class PdfToolKitApp(ctk.CTk):
         self._merge_panels["PDF书签"].apply_to_config(self._config)
         self._combine_panels["文件列表"].apply_to_config(self._config)
         self._combine_panels["参数设置"].apply_to_config(self._config)
+        self._scan_panels["路径"].apply_to_config(self._config)
+        self._scan_panels["扫描参数"].apply_to_config(self._config)
         return self._config
 
     # =========================================================================
@@ -297,6 +321,8 @@ class PdfToolKitApp(ctk.CTk):
             self._on_start_merge()
         elif self._current_mode == "拼图":
             self._on_start_combine()
+        elif self._current_mode == "扫描":
+            self._on_start_scan()
 
     def _on_start_merge(self):
         """合并模式开始处理。"""
@@ -438,6 +464,58 @@ class PdfToolKitApp(ctk.CTk):
         except Exception as e:
             log_q.put(f"[X] 拼图执行失败: {e}")
 
+        finally:
+            sys.stdout = old_stdout
+            log_q.put("done")
+
+    def _on_start_scan(self):
+        """扫描模式开始处理。"""
+        config = self._collect_config()
+        scan_cfg = config.scan
+
+        if not scan_cfg.input_root or not os.path.isdir(scan_cfg.input_root):
+            self._log("[X] 输入目录不存在")
+            return
+        if not scan_cfg.output_root:
+            self._log("[X] 请设置输出目录")
+            return
+
+        self._running = True
+        self._stop_event.clear()
+        self._start_btn.configure(state="disabled")
+        self._stop_btn.configure(state="normal")
+        self._progress.set(0)
+        self._status_label.configure(text="扫描处理中...")
+
+        thread = threading.Thread(target=self._run_scan, args=(scan_cfg,), daemon=True)
+        thread.start()
+
+    def _run_scan(self, scan_cfg):
+        """子线程：执行扫描流程。"""
+        from core import process_scan_root
+
+        old_stdout = sys.stdout
+        log_q = self._log_queue
+
+        class QueueWriter:
+            def write(self, text):
+                if old_stdout is not None:
+                    old_stdout.write(text)
+                if text and text.strip():
+                    log_q.put(text.strip())
+
+            def flush(self):
+                if old_stdout is not None:
+                    old_stdout.flush()
+
+        try:
+            sys.stdout = QueueWriter()
+            os.makedirs(scan_cfg.output_root, exist_ok=True)
+            process_scan_root(scan_cfg, stop_event=self._stop_event)
+            log_q.put(("progress", 1.0))
+            log_q.put(f"\n[DONE] 扫描完成! 输出目录: {scan_cfg.output_root}")
+        except Exception as e:
+            log_q.put(f"[X] 扫描失败: {e}")
         finally:
             sys.stdout = old_stdout
             log_q.put("done")
