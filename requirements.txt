@@ -5,3 +5,7 @@ customtkinter>=5.2
 PyMuPDF>=1.23
 # 以下仅图片化模式需要
 pdf2image>=1.16
+# 扫描模式
+look-like-scanned>=1.2.0
+pypdfium2>=5.0
+pywin32>=306; sys_platform == "win32"
