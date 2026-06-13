@@ -307,6 +307,36 @@ class CombineConfig:
 
 
 # =============================================================================
+#  扫描配置
+# =============================================================================
+
+@dataclass
+class ScanConfig:
+    # ── 路径 ──
+    input_root: str = ""
+    output_root: str = ""
+    include_office: bool = False        # 是否处理 .doc/.docx
+    include_images: bool = False        # 是否处理 .jpg/.png/.tiff/.webp/.bmp
+
+    # ── 渲染 ──
+    dpi: int = 300                      # 100/200/300/400/500/600
+
+    # ── 强度预设 ──
+    preset: str = "medium"              # light / medium / heavy / custom
+
+    # ── 自定义参数（仅 preset == "custom" 时被读取）──
+    askew: bool = True
+    noise: int = 5                      # 0–50
+    contrast: float = 1.0               # 0.5–2.0
+    sharpness: float = 1.0              # 0.5–3.0
+    brightness: float = 1.0             # 0.5–2.0
+    black_and_white: bool = False
+    blur: bool = False
+    blur_variation: bool = False        # 景深虚化
+    jpeg_quality: int = 90              # 50–100
+
+
+# =============================================================================
 #  总配置
 # =============================================================================
 
@@ -321,6 +351,7 @@ class AppConfig:
     numbering: NumberingConfig = field(default_factory=NumberingConfig)
     bookmark: BookmarkConfig = field(default_factory=BookmarkConfig)
     combine: CombineConfig = field(default_factory=CombineConfig)
+    scan: ScanConfig = field(default_factory=ScanConfig)
 
     # ── JSON 持久化 ──
 
@@ -340,6 +371,7 @@ class AppConfig:
             numbering=NumberingConfig(**data.get("numbering", {})),
             bookmark=BookmarkConfig(**data.get("bookmark", {})),
             combine=CombineConfig(**data.get("combine", {})),
+            scan=ScanConfig(**data.get("scan", {})),
         )
 
     # ── 文件持久化 ──
