@@ -316,3 +316,92 @@ def process_single_merge(input_folder, output_file, config: AppConfig, stop_even
                 except Exception as ex:
                     print(f"[!] 清理 {f} 失败：{ex}")
         cleanup_temp()
+
+
+def process_scan_root(scan_cfg, stop_event=None):
+    """扫描模式入口：递归处理输入根下所有 PDF/Office/图片，
+    输出镜像写入输出根。"""
+    from methods.scan import collect_scan_files, process_scan_file
+    from methods.office import coinitialize, couninitialize
+
+    in_root = scan_cfg.input_root
+    out_root = scan_cfg.output_root
+
+    if not in_root or not os.path.isdir(in_root):
+        print(f"[X] 输入目录不存在：{in_root}")
+        return
+    if not out_root:
+        print("[X] 未设置输出目录")
+        return
+
+    if os.path.abspath(in_root) == os.path.abspath(out_root):
+        print("[!] 输入输出相同，输入根下的 .pdf 可能被覆盖")
+
+    files = collect_scan_files(scan_cfg)
+    total = len(files)
+    if total == 0:
+        print("[!] 未找到可处理的文件")
+        return
+
+    print(f"\n 共 {total} 个文件待处理")
+
+    coinitialize()
+    ok = fail = skip = stopped = 0
+    seen_outputs = set()
+    try:
+        for i, src in enumerate(files):
+            if stop_event and stop_event.is_set():
+                stopped = total - i
+                print("[STOP] 已停止")
+                break
+
+            rel = os.path.relpath(src, in_root)
+            stem, _ = os.path.splitext(rel)
+            dst = os.path.join(out_root, stem + ".pdf")
+            dst_key = os.path.normcase(os.path.abspath(dst))
+
+            print(f"\n [{i+1}/{total}] {rel}")
+
+            if dst_key in seen_outputs:
+                print(f"[!] 同名冲突：{stem}.pdf 已被前一个文件输出，本次跳过 {os.path.basename(src)}")
+                skip += 1
+                continue
+            seen_outputs.add(dst_key)
+
+            try:
+                os.makedirs(os.path.dirname(os.path.abspath(dst)), exist_ok=True)
+            except PermissionError:
+                print(f"[X] 无权创建目录：{os.path.dirname(dst)}")
+                fail += 1
+                continue
+
+            try:
+                result = process_scan_file(src, dst, scan_cfg, stop_event)
+            except Exception as e:
+                print(f"[X] {rel} 处理时抛出未捕获异常：{e}")
+                fail += 1
+                continue
+
+            if result == "ok":
+                ok += 1
+            elif result == "skip":
+                skip += 1
+            elif result == "stopped":
+                stopped = total - i
+                break
+            else:
+                fail += 1
+    finally:
+        couninitialize()
+
+    print(f"""
+╔==================================================╗
+║    扫描处理完成
+╠==================================================╣
+║  成功：{ok}
+║  失败：{fail}
+║  跳过：{skip}
+║  未处理（已停止）：{stopped}
+║  输出：{os.path.abspath(out_root)}
+╚==================================================╝
+""")
