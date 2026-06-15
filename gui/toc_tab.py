@@ -93,7 +93,9 @@ class TocTab:
             anchor="w", padx=10, pady=2)
         num_var.trace_add("write", lambda *_: self._set_num_bool("enabled", num_var))
 
-        _NUM_STYLES = ["none", "chinese", "arabic", "multi_level"]
+        _STYLE_DISPLAY = {"none": "无", "chinese": "中文", "arabic": "阿拉伯数字", "multi_level": "多级编号"}
+        _STYLE_REVERSE = {v: k for k, v in _STYLE_DISPLAY.items()}
+        _NUM_STYLE_DISPLAYS = list(_STYLE_DISPLAY.values())
         _LEVEL_ATTRS = [
             ("level1_style", "一级编号"),
             ("level2_style", "二级编号"),
@@ -104,11 +106,13 @@ class TocTab:
             f = ctk.CTkFrame(self._frame, fg_color="transparent")
             f.pack(fill="x", padx=10, pady=2)
             ctk.CTkLabel(f, text=label, width=150, anchor="w").pack(side="left")
-            sv = ctk.StringVar(value=getattr(self._numbering, attr, "none"))
+            current_val = getattr(self._numbering, attr, "none")
+            display_val = _STYLE_DISPLAY.get(current_val, current_val)
+            sv = ctk.StringVar(value=display_val)
             ctk.CTkComboBox(
                 f, variable=sv,
-                values=_NUM_STYLES,
-                command=lambda v, a=attr: self._set_num_str(a, v),
+                values=_NUM_STYLE_DISPLAYS,
+                command=lambda v, a=attr: self._set_num_str(a, _STYLE_REVERSE.get(v, v)),
                 width=200
             ).pack(side="right")
 
@@ -118,6 +122,22 @@ class TocTab:
         sep_var = ctk.StringVar(value=self._numbering.separator)
         ctk.CTkEntry(sep_frame, textvariable=sep_var, width=120).pack(side="right")
         sep_var.trace_add("write", lambda *_: self._set_num_str("separator", sep_var))
+
+        # 编号前缀（如"第"）
+        pfx_frame = ctk.CTkFrame(self._frame, fg_color="transparent")
+        pfx_frame.pack(fill="x", padx=10, pady=2)
+        ctk.CTkLabel(pfx_frame, text="编号前缀", width=150, anchor="w").pack(side="left")
+        pfx_var = ctk.StringVar(value=self._numbering.num_prefix)
+        ctk.CTkEntry(pfx_frame, textvariable=pfx_var, width=120).pack(side="right")
+        pfx_var.trace_add("write", lambda *_: self._set_num_str("num_prefix", pfx_var))
+
+        # 编号后缀（如"章"）
+        sfx_frame = ctk.CTkFrame(self._frame, fg_color="transparent")
+        sfx_frame.pack(fill="x", padx=10, pady=2)
+        ctk.CTkLabel(sfx_frame, text="编号后缀", width=150, anchor="w").pack(side="left")
+        sfx_var = ctk.StringVar(value=self._numbering.num_suffix)
+        ctk.CTkEntry(sfx_frame, textvariable=sfx_var, width=120).pack(side="right")
+        sfx_var.trace_add("write", lambda *_: self._set_num_str("num_suffix", sfx_var))
 
     def _set_str(self, attr, var):
         try:

@@ -270,6 +270,9 @@ class NumberingConfig:
     level_deeper_style: str = "none"
     # 编号与名称的分隔符
     separator: str = "、"
+    # 编号前缀（如"第"）和后缀（如"章"），格式：{前缀}{数字}{后缀}{分隔符}
+    num_prefix: str = ""
+    num_suffix: str = ""
 
 
 # =============================================================================

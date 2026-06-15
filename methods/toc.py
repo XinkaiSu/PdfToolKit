@@ -124,7 +124,7 @@ def generate_toc(output_path, items, pagination, title, config: AppConfig):
             # 更新计数器：当父级变化时重置更深层计数器
             parent_path = item.get("path", "")
             if style != "none":
-                current_parent = os.path.dirname(parent_path) if item["type"] == "file" else parent_path
+                current_parent = os.path.dirname(parent_path)
                 if current_parent != _last_parent_at_level[level - 1]:
                     # 父级变化，重置当前及更深层的计数器
                     for j in range(level - 1, len(_num_counters)):
@@ -132,7 +132,8 @@ def generate_toc(output_path, items, pagination, title, config: AppConfig):
                     _last_parent_at_level[level - 1] = current_parent
                 _num_counters[level - 1] += 1
 
-            prefix = _compute_numbering_prefix(level, _num_counters, style, num_cfg.separator)
+            prefix = _compute_numbering_prefix(level, _num_counters, style, num_cfg.separator,
+                                               num_cfg.num_prefix, num_cfg.num_suffix)
             if prefix:
                 name_text = prefix + name_text
 

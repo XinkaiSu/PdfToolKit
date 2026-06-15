@@ -9,6 +9,8 @@ import customtkinter as ctk
 
 from config import AppConfig
 
+from .about_dialog import show_about
+
 
 class HomeTab:
     """首页 — 介绍合并和拼图两大功能。"""
@@ -92,6 +94,20 @@ class HomeTab:
             text_color="gray",
             font=ctk.CTkFont(size=13),
         ).pack(pady=(15, 0))
+
+        # 隐蔽入口：右下角低对比度小标签，点击弹出「关于」
+        about_hint = ctk.CTkLabel(
+            self._frame,
+            text=f"ⓘ  v{__version__}",
+            text_color=("#9aa0a6", "#5f6368"),
+            cursor="hand2",
+            font=ctk.CTkFont(size=11),
+        )
+        about_hint.place(relx=1.0, rely=1.0, anchor="se", x=-12, y=-10)
+        about_hint.bind(
+            "<Button-1>",
+            lambda _e: show_about(self._frame.winfo_toplevel()),
+        )
 
     def apply_to_config(self, config: AppConfig):
         pass

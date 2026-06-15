@@ -55,19 +55,22 @@ def _int_to_cn(n: int) -> str:
     return result
 
 
-def _compute_numbering_prefix(level: int, counters: list, style: str, separator: str) -> str:
+def _compute_numbering_prefix(level: int, counters: list, style: str, separator: str,
+                              num_prefix: str = "", num_suffix: str = "") -> str:
     """根据编号样式和计数器生成编号前缀。
     counters: 各级计数器列表，1-indexed。
+    num_prefix: 编号前缀（如"第"），num_suffix: 编号后缀（如"章"）。
+    格式：{num_prefix}{数字}{num_suffix}{separator}
     """
     if style == "none":
         return ""
     if style == "chinese":
-        return _int_to_cn(counters[level - 1]) + separator
+        return num_prefix + _int_to_cn(counters[level - 1]) + num_suffix + separator
     if style == "arabic":
-        return str(counters[level - 1]) + separator
+        return num_prefix + str(counters[level - 1]) + num_suffix + separator
     if style == "multi_level":
         parts = [str(counters[i]) for i in range(level)]
-        return ".".join(parts) + separator
+        return num_prefix + ".".join(parts) + num_suffix + separator
     return ""
 
 
