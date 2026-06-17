@@ -112,24 +112,34 @@ def add_page_numbers(input_pdf, output_pdf, skip_pages, config: AppConfig):
         total_pages = len(page_sizes)
         max_page_num = max((idx - skip_pages + 1) for idx in range(total_pages) if idx >= skip_pages) if total_pages > skip_pages else 0
 
-        # 一次性生成所有页码叠加层
-        num_xobjects = {}
-        if max_page_num > 0:
-            tmp = make_temp_file()
-            tc = canvas.Canvas(tmp, pagesize=(A4_WIDTH, A4_HEIGHT))
-            for pnum in range(1, max_page_num + 1):
-                _draw_page_number(tc, pnum, A4_WIDTH, config)
-                tc.showPage()
-            tc.save()
+        # 按页面尺寸（含横/竖向）缓存页码叠加层。
+        # 注意：页码层必须与目标页尺寸一致，否则横向页会把页码画到页面之外。
+        num_xobjects = {}  # key: (round(w), round(h)) -> {page_num: formx}
 
-            with Pdf.open(tmp) as num_pdf:
-                for pnum_idx in range(len(num_pdf.pages)):
-                    num_formx, _, _ = _page_to_xobject(out, num_pdf.pages[pnum_idx])
-                    num_xobjects[pnum_idx + 1] = num_formx
-            try:
-                os.unlink(tmp)
-            except Exception:
-                pass
+        def _build_num_xobjects(width, height):
+            """为指定尺寸生成 1..max_page_num 的页码 XObject 并缓存。"""
+            key = (round(width), round(height))
+            if key in num_xobjects:
+                return num_xobjects[key]
+            objs = {}
+            if max_page_num > 0:
+                tmp = make_temp_file()
+                tc = canvas.Canvas(tmp, pagesize=(width, height))
+                for pnum in range(1, max_page_num + 1):
+                    _draw_page_number(tc, pnum, width, config)
+                    tc.showPage()
+                tc.save()
+
+                with Pdf.open(tmp) as num_pdf:
+                    for pnum_idx in range(len(num_pdf.pages)):
+                        num_formx, _, _ = _page_to_xobject(out, num_pdf.pages[pnum_idx])
+                        objs[pnum_idx + 1] = num_formx
+                try:
+                    os.unlink(tmp)
+                except Exception:
+                    pass
+            num_xobjects[key] = objs
+            return objs
 
         # 处理每一页：转 XObject + 嵌入 + 可选页码叠加
         for idx, src_page in enumerate(src_page_list):
@@ -139,14 +149,17 @@ def add_page_numbers(input_pdf, output_pdf, skip_pages, config: AppConfig):
                 out, new_obj, formx, pikepdf.Name("/Pg"),
                 pw, ph, allow_shrink=False, allow_expand=False
             )
-            if idx >= skip_pages and (idx - skip_pages + 1) in num_xobjects:
+            if idx >= skip_pages:
                 page_num = idx - skip_pages + 1
-                num_formx = num_xobjects[page_num]
-                num_content = _embed_xobject(
-                    out, new_obj, num_formx, pikepdf.Name("/Num"),
-                    pw, ph, allow_shrink=False, allow_expand=False
-                )
-                content = content + b"\n" + num_content
+                # 用与当前页尺寸匹配的页码层（横/竖向各自一套）
+                num_objs = _build_num_xobjects(pw, ph)
+                if page_num in num_objs:
+                    num_formx = num_objs[page_num]
+                    num_content = _embed_xobject(
+                        out, new_obj, num_formx, pikepdf.Name("/Num"),
+                        pw, ph, allow_shrink=False, allow_expand=False
+                    )
+                    content = content + b"\n" + num_content
             new_obj["/Contents"] = out.make_stream(content)
 
         out.save(output_pdf, encryption=False)
